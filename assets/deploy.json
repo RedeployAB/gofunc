@@ -1,0 +1,128 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "location": {
+      "type": "string",
+      "defaultValue": "[resourceGroup().location]",
+      "metadata": {
+        "description": "Location of resources."
+      }
+    },
+    "storageAccountName": {
+      "type": "string",
+      "maxLength": 24,
+      "metadata": {
+        "description": "Name of Storage Account for Function App environment."
+      }
+    },
+    "storageAccountSku": {
+      "type": "string",
+      "defaultValue": "Standard_LRS",
+      "allowedValues": [
+        "Standard_LRS"
+      ],
+      "metadata": {
+        "description": "Storage Account SKU."
+      }
+    },
+    "hostingPlanName": {
+      "type": "string",
+      "metadata": {
+        "description": "Name of Consumption Plan for Function App."
+      }
+    },
+    "functionAppName": {
+      "type": "string",
+      "metadata": {
+        "description": "Name of Function App."
+      }
+    },
+    "appInsightsName": {
+      "type": "string",
+      "metadata": {
+        "description": "Name of Application Insights for Function App environment."
+      }
+    }
+  },
+  "variables": {
+    "storageAccountId": "[resourceId('Microsoft.Storage/storageAccounts', parameters('storageAccountName'))]",
+    "hostingPlanId": "[resourceId('Microsoft.Web/serverFarms', parameters('hostingPlanName'))]",
+    "appInsightId": "[resourceId('Microsoft.Insights/components', parameters('appInsightsName'))]"
+  },
+  "resources": [
+    {
+      "type": "Microsoft.Storage/storageAccounts",
+      "apiVersion": "2019-04-01",
+      "name": "[parameters('storageAccountName')]",
+      "location": "[parameters('location')]",
+      "kind": "StorageV2",
+      "sku": {
+        "name": "[parameters('storageAccountSku')]"
+      }
+    },
+    {
+      "type": "Microsoft.Web/serverfarms",
+      "apiVersion":"2018-02-01",
+      "name": "[parameters('hostingPlanName')]",
+      "location": "[parameters('location')]",
+      "sku": {
+        "name": "Y1",
+        "tier": "Dynamic",
+        "size": "Y1",
+        "family": "Y",
+        "capacity": 0
+      },
+      "properties": {
+        "name": "[parameters('hostingPlanName')]",
+        "computeMode": "Dynamic"
+      }
+    },
+    {
+      "type": "Microsoft.Web/sites",
+      "apiVersion": "2018-11-01",
+      "name": "[parameters('functionAppName')]",
+      "location": "[parameters('location')]",
+      "kind": "functionapp",
+      "properties": {
+        "serverFarmId": "[variables('hostingPlanId')]"
+      },
+      "resources": [
+        {
+          "type": "config",
+          "apiVersion": "2018-11-01",
+          "name": "appsettings",
+          "dependsOn": [
+            "[resourceId('Microsoft.Web/sites', parameters('functionAppName'))]"
+          ],
+          "properties": {
+            "APPINSIGHTS_INSTRUMENTATIONKEY": "[reference(variables('appInsightId'), '2015-05-01').instrumentationKey]",
+            "AzureWebJobsStorage": "[concat('DefaultEndpointsProtocol=https;AccountName=', parameters('storageAccountName'), ';AccountKey=', listKeys(variables('storageAccountid'),'2015-05-01-preview').key1)]",
+            "FUNCTIONS_EXTENSION_VERSION": "~3",
+            "FUNCTIONS_WORKER_RUNTIME": "custom"
+          }
+        }
+      ],
+      "dependsOn": [
+        "[variables('storageAccountId')]",
+        "[variables('hostingPlanId')]",
+        "[variables('appInsightId')]"
+      ]
+    },
+    {
+      "type": "Microsoft.Insights/components",
+      "apiVersion": "2015-05-01",
+      "name": "[parameters('appInsightsName')]",
+      "location": "[parameters('location')]",
+      "kind": "web",
+      "properties": {
+        "Application_Type": "web",
+        "ApplicationId": "[parameters('appInsightsName')]"
+      },
+      "tags": {
+        "[concat('hidden-link:', resourceGroup().id, '/providers/Microsoft.Web/sites', parameters('functionAppName'))]": "Resource"
+      }
+    }
+  ],
+  "outputs": {}
+}
