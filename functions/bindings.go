@@ -16,7 +16,8 @@ type HTTPRequest struct {
 type HTTPResponse struct {
 	Outputs struct {
 		Res struct {
-			Body string `json:"body"`
+			Body       string `json:"body"`
+			StatusCode string `json:"statusCode"`
 		} `json:"res"`
 	}
 	Logs        []string

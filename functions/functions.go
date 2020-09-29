@@ -20,21 +20,19 @@ func IncomingHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	response := HTTPResponse{}
 	var payload Payload
 	if err := json.Unmarshal([]byte(req.Data.Req.Body), &payload); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
+		response.Outputs.Res.StatusCode = "400"
+	} else {
+		response.Outputs.Res.Body = "Hello " + payload.Name
 	}
-
-	response := HTTPResponse{}
-	response.Outputs.Res.Body = "Hello " + payload.Name
 
 	res, err := json.Marshal(response)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-
 	w.Header().Set("Content-Type", "application/json")
 	w.Write(res)
 }
